@@ -27,6 +27,7 @@ import (
 	"github.com/u-root/u-root/pkg/efivarfs"
 	"github.com/u-root/u-root/pkg/mount"
 	"github.com/u-root/u-root/pkg/uio"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -175,13 +176,15 @@ func main() {
 
 	switch hostCfg.location {
 	case hostCfgEfivar:
-		_, err := mount.Mount("efivarfs", "/sys/firmware/efi/efivars", "efivarfs", "", 0)
-		if err != nil {
-			stlog.Error("mounting efivarfs: %v", err)
-			host.Recover()
+		var stat unix.Statfs_t
+		if err := unix.Statfs("/sys/firmware/efi/efivars", &stat); err != nil {
+			_, err := mount.Mount("efivarfs", "/sys/firmware/efi/efivars", "efivarfs", "", 0)
+			if err != nil {
+				stlog.Error("mounting efivarfs: %v", err)
+				host.Recover()
+			}
+			stlog.Info("mounted efivarfs at /sys/firmware/efi/efivars")
 		}
-
-		stlog.Info("mounted efivarfs at /sys/firmware/efi/efivars")
 
 		_, efiReader, err := efivarfs.SimpleReadVariable(hostCfg.name)
 		if err != nil {
